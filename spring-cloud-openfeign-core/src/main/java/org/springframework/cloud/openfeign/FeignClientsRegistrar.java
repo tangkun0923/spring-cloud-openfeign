@@ -67,6 +67,8 @@ import org.springframework.util.StringUtils;
  * @author Marcin Grzejszczak
  * @author Olga Maciaszek-Sharma
  * @author Jasbir Singh
+ *
+ * 负责根据 @EnableFeignClients 注册Feign客户端
  */
 class FeignClientsRegistrar implements ImportBeanDefinitionRegistrar, ResourceLoaderAware, EnvironmentAware {
 
@@ -147,7 +149,9 @@ class FeignClientsRegistrar implements ImportBeanDefinitionRegistrar, ResourceLo
 
 	@Override
 	public void registerBeanDefinitions(AnnotationMetadata metadata, BeanDefinitionRegistry registry) {
+		// EnableFeignClients(defaultConfiguration) 默认配置注册
 		registerDefaultConfiguration(metadata, registry);
+		// EnableFeignClients(clients、basePackages) 进行 FeignClient 的注册 如果 clients 不为空则忽略 basePackages
 		registerFeignClients(metadata, registry);
 	}
 
@@ -197,8 +201,9 @@ class FeignClientsRegistrar implements ImportBeanDefinitionRegistrar, ResourceLo
 						.getAnnotationAttributes(FeignClient.class.getCanonicalName());
 
 				String name = getClientName(attributes);
+				// 注册 FeignClient（configuration），每一个FeignClient都对应一个 FeignClientSpecification对象，里面有 configuration 的引用，后面会跟 EnableFeignClients（configuration）进行合并
 				registerClientConfiguration(registry, name, attributes.get("configuration"));
-
+				// 注册的实际上是 FeignClientFactoryBean
 				registerFeignClient(registry, annotationMetadata, attributes);
 			}
 		}

@@ -117,15 +117,21 @@ public class FeignClientFactoryBean
 	}
 
 	protected Feign.Builder feign(FeignContext context) {
+		// 从 FeignContext 的 configurations 中获取FeignLoggerFactory
 		FeignLoggerFactory loggerFactory = get(context, FeignLoggerFactory.class);
 		Logger logger = loggerFactory.create(type);
 
 		// @formatter:off
-		Feign.Builder builder = get(context, Feign.Builder.class)
+		Feign.Builder builder =
+			// 获取 Feign.Builder 可以自定义事项，Sentinel 和 Hystrix 就是通過自定  实现熔断、限流、降级的
+			get(context, Feign.Builder.class)
 				// required values
 				.logger(logger)
+				// 编码器
 				.encoder(get(context, Encoder.class))
+				// 解码器
 				.decoder(get(context, Decoder.class))
+				// 方法解析器
 				.contract(get(context, Contract.class));
 		// @formatter:on
 
@@ -150,6 +156,7 @@ public class FeignClientFactoryBean
 		FeignClientProperties properties = beanFactory != null ? beanFactory.getBean(FeignClientProperties.class)
 				: applicationContext.getBean(FeignClientProperties.class);
 
+		// FeignClientConfigurer 默认实现是空实现，可以通过实现inheritParentConfiguration来限定是否继承父的配置上下文
 		FeignClientConfigurer feignClientConfigurer = getOptional(context, FeignClientConfigurer.class);
 		setInheritParentContext(feignClientConfigurer.inheritParentConfiguration());
 
@@ -311,6 +318,8 @@ public class FeignClientFactoryBean
 	}
 
 	protected <T> T get(FeignContext context, Class<T> type) {
+		// 创建名为 contextId 的 AnnotationConfigApplicationContext 上下文，并将  EnableFeignClients 默认的配置和 FeignClient 中的配置类注册到上下文中
+		// 先从创建的上下文中获取 type，没有则去 parent 上下文获取并返回
 		T instance = context.getInstance(contextId, type);
 		if (instance == null) {
 			throw new IllegalStateException("No bean found of type " + type + " for " + contextId);
@@ -375,10 +384,15 @@ public class FeignClientFactoryBean
 	 * @param <T> the target type of the Feign client
 	 * @return a {@link Feign} client created with the specified data and the context
 	 * information
+	 *
+	 * 获取代理对象
 	 */
 	<T> T getTarget() {
+		// FeignContext 在 FeignAutoConfiguration 配置中初始化，并且 FeignContext会拥有 List<FeignClientSpecification>
+		// 即所有的配置类列表
 		FeignContext context = beanFactory != null ? beanFactory.getBean(FeignContext.class)
 				: applicationContext.getBean(FeignContext.class);
+		// 构建 Feign.Builder
 		Feign.Builder builder = feign(context);
 
 		if (!StringUtils.hasText(url)) {
